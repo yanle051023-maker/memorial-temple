@@ -17,221 +17,278 @@
         #loading .err{color:#ff6b6b;font-size:.8em;margin-top:16px;display:none;text-align:center;padding:0 20px}
         #overlay{position:fixed;top:0;left:0;width:100%;pointer-events:none;z-index:10;text-align:center;padding:18px}
         #overlay h1{color:#FFD700;font-size:1.5em;letter-spacing:.5em;text-shadow:0 2px 12px rgba(0,0,0,.7),0 0 30px rgba(255,215,0,.15)}
-        #overlay p{color:rgba(255,255,255,.4);font-size:.7em;margin-top:5px;letter-spacing:.2em}
-        #controls{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);z-index:10;display:flex;gap:8px}
-        #controls button{background:rgba(0,0,0,.5);color:#e8d5a0;border:1px solid rgba(255,215,0,.2);padding:7px 16px;border-radius:20px;font-family:inherit;font-size:.75em;cursor:pointer;-webkit-tap-highlight-color:transparent;backdrop-filter:blur(10px)}
-        #controls button:active{background:rgba(255,215,0,.12);transform:scale(.96)}
-        #info-panel{position:fixed;bottom:64px;left:50%;transform:translateX(-50%);z-index:10;background:rgba(10,8,5,.75);color:#e0d5c0;padding:14px 22px;border-radius:14px;font-size:.78em;line-height:2;text-align:center;max-width:88vw;backdrop-filter:blur(12px);border:1px solid rgba(255,215,0,.12);display:none}
-        #info-panel.show{display:block}
-        #info-panel .label{color:#c9a84c;font-size:.9em}
+        #overlay p{color:rgba(255,255,255,.4);font-size:.75em;letter-spacing:.2em;margin-top:4px}
+        #info-panel{position:fixed;bottom:16px;left:50%;transform:translateX(-50%);background:rgba(0,0,0,.6);color:rgba(255,255,255,.7);padding:10px 18px;border-radius:8px;font-size:.75em;letter-spacing:.1em;pointer-events:none;opacity:0;transition:opacity .3s;backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);max-width:90vw;text-align:center}
+        #info-panel.show{opacity:1}
+        #controls{position:fixed;bottom:16px;right:16px;display:flex;flex-direction:column;gap:8px;z-index:20}
+        #controls button{width:40px;height:40px;border-radius:50%;border:1px solid rgba(255,215,0,.3);background:rgba(0,0,0,.4);color:#FFD700;font-size:16px;cursor:pointer;backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px);display:flex;align-items:center;justify-content:center}
+        #controls button:active{background:rgba(255,215,0,.2)}
     </style>
 </head>
 <body>
     <div id="loading">
         <h2>永怀堂</h2>
-        <p>纪念先父</p>
+        <p>纪念寺庙</p>
         <div class="bar"><div class="bar-fill" id="load-bar"></div></div>
         <div class="err" id="load-err">加载失败，请刷新页面重试</div>
     </div>
     <div id="overlay">
         <h1>永怀堂</h1>
-        <p>双指缩放 · 单指旋转</p>
+        <p>缅怀先父 · 德泽长存</p>
     </div>
+    <div id="info-panel">手指拖动旋转 · 双指缩放 · 底部按钮控制</div>
     <div id="controls">
-        <button onclick="resetCamera()">复位</button>
-        <button onclick="toggleAutoRotate()">旋转</button>
-        <button onclick="toggleInfo()">对联</button>
-    </div>
-    <div id="info-panel">
-        <div class="label">—— 殿堂对联 ——</div>
-        <div>上联（右）：广堡深恩似海长</div>
-        <div>下联（左）：侃君厚德如山重</div>
-        <div class="label" style="margin-top:4px">横批：祖德流芳</div>
+        <button onclick="resetCamera()" title="重置视角">⟲</button>
+        <button onclick="toggleAutoRotate()" title="自动旋转">↻</button>
+        <button onclick="toggleInfo()" title="操作说明">i</button>
     </div>
 
     <script>
-    var THREE_URLS = [
-        'https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.min.js',
-        'https://unpkg.com/three@0.160.0/build/three.min.js',
-        'https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js'
+    // CDN fallback chain
+    var cdnUrls = [
+        'https://cdn.jsdelivr.net/npm/three@0.157.0/build/three.min.js',
+        'https://unpkg.com/three@0.157.0/build/three.min.js',
+        'https://cdnjs.cloudflare.com/ajax/libs/three.js/0.157.0/three.min.js'
     ];
-    var OC_URLS = [
-        'https://cdn.jsdelivr.net/npm/three@0.160.0/examples/js/controls/OrbitControls.js',
-        'https://unpkg.com/three@0.160.0/examples/js/controls/OrbitControls.js',
-        'https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js'
+    var orbUrls = [
+        'https://cdn.jsdelivr.net/npm/three@0.157.0/examples/js/controls/OrbitControls.js',
+        'https://unpkg.com/three@0.157.0/examples/js/controls/OrbitControls.js',
+        'https://cdnjs.cloudflare.com/ajax/libs/three.js/0.157.0/examples/js/controls/OrbitControls.js'
     ];
-    function loadJS(urls,i,cb){if(i>=urls.length){cb(false);return}var s=document.createElement('script');s.src=urls[i];s.onload=function(){cb(true)};s.onerror=function(){loadJS(urls,i+1,cb)};document.head.appendChild(s)}
-    loadJS(THREE_URLS,0,function(ok1){if(!ok1){showErr();return}loadJS(OC_URLS,0,function(ok2){if(!ok2||typeof THREE==='undefined'||typeof THREE.OrbitControls==='undefined'){showErr();return}go()})});
-    function showErr(){document.getElementById('load-err').style.display='block';document.getElementById('load-bar').style.background='#ff6b6b'}
 
-    function go(){
-    (function(){
-        var scene=new THREE.Scene();
-        scene.background=new THREE.Color(0x8fb8d0);
-        scene.fog=new THREE.FogExp2(0x9db8c7,0.007);
+    function loadScript(urls, cb) {
+        var i = 0;
+        function tryNext() {
+            if (i >= urls.length) { document.getElementById('load-err').style.display='block'; return; }
+            var s = document.createElement('script');
+            s.src = urls[i]; s.onerror = function() { i++; tryNext(); };
+            s.onload = cb;
+            document.head.appendChild(s);
+        }
+        tryNext();
+    }
 
-        var camera=new THREE.PerspectiveCamera(50,innerWidth/innerHeight,0.1,300);
-        camera.position.set(0,8,22);
+    loadScript(cdnUrls, function() {
+        loadScript(orbUrls, function() {
+            initScene();
+        });
+    });
 
-        var renderer=new THREE.WebGLRenderer({antialias:true});
-        renderer.setSize(innerWidth,innerHeight);
-        renderer.setPixelRatio(Math.min(devicePixelRatio,2));
-        renderer.shadowMap.enabled=true;
-        renderer.shadowMap.type=THREE.PCFSoftShadowMap;
-        renderer.toneMapping=THREE.ACESFilmicToneMapping;
-        renderer.toneMappingExposure=1.15;
-        renderer.outputEncoding=THREE.sRGBEncoding;
+    function initScene() {
+    (function() {
+        // ═══ SETUP ═══
+        var scene = new THREE.Scene();
+        scene.fog = new THREE.FogExp2(0x8899aa, 0.012);
+
+        var camera = new THREE.PerspectiveCamera(50, innerWidth/innerHeight, 0.1, 200);
+        camera.position.set(0, 8, 22);
+
+        var renderer = new THREE.WebGLRenderer({ antialias: true });
+        renderer.setSize(innerWidth, innerHeight);
+        renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+        renderer.shadowMap.enabled = true;
+        renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+        renderer.toneMapping = THREE.ACESFilmicToneMapping;
+        renderer.toneMappingExposure = 1.1;
         document.body.appendChild(renderer.domElement);
 
-        var controls=new THREE.OrbitControls(camera,renderer.domElement);
-        controls.enableDamping=true;controls.dampingFactor=0.07;
-        controls.minDistance=5;controls.maxDistance=50;
-        controls.maxPolarAngle=Math.PI/2.02;
-        controls.target.set(0,3.5,0);controls.update();
+        var controls = new THREE.OrbitControls(camera, renderer.domElement);
+        controls.target.set(0, 3.5, 0);
+        controls.enableDamping = true;
+        controls.dampingFactor = 0.08;
+        controls.minDistance = 5;
+        controls.maxDistance = 40;
+        controls.maxPolarAngle = Math.PI * 0.48;
+        controls.update();
 
-        // Lighting
-        scene.add(new THREE.AmbientLight(0xffeedd,0.5));
-        var sun=new THREE.DirectionalLight(0xfff5e0,1.2);
-        sun.position.set(15,25,10);sun.castShadow=true;
-        sun.shadow.mapSize.set(2048,2048);
-        sun.shadow.camera.near=0.5;sun.shadow.camera.far=60;
-        var sc=30;sun.shadow.camera.left=-sc;sun.shadow.camera.right=sc;
-        sun.shadow.camera.top=sc;sun.shadow.camera.bottom=-sc;
-        sun.shadow.bias=-0.0005;scene.add(sun);
-        scene.add(new THREE.DirectionalLight(0xaaccff,0.2).translateX(-10).translateY(10));
+        // ═══ LIGHTING ═══
+        scene.add(new THREE.AmbientLight(0x667788, 0.6));
+        scene.add(new THREE.HemisphereLight(0x88aacc, 0x445533, 0.5));
 
-        // Textures
-        function mkTex(w,h,fn){var c=document.createElement('canvas');c.width=w;c.height=h;fn(c.getContext('2d'),w,h);var t=new THREE.CanvasTexture(c);t.wrapS=t.wrapT=THREE.RepeatWrapping;return t}
+        var sun = new THREE.DirectionalLight(0xffeedd, 1.2);
+        sun.position.set(8, 15, 10);
+        sun.castShadow = true;
+        sun.shadow.mapSize.set(2048, 2048);
+        sun.shadow.camera.near = 0.5;
+        sun.shadow.camera.far = 50;
+        sun.shadow.camera.left = -20;
+        sun.shadow.camera.right = 20;
+        sun.shadow.camera.top = 20;
+        sun.shadow.camera.bottom = -20;
+        sun.shadow.bias = -0.001;
+        scene.add(sun);
 
-        var stoneTex=mkTex(256,256,function(ctx,w,h){
-            ctx.fillStyle='#8a8a7a';ctx.fillRect(0,0,w,h);
-            for(var i=0;i<3000;i++){var v=120+Math.random()*40;ctx.fillStyle='rgba('+v+','+v+','+(v-10)+',0.15)';ctx.fillRect(Math.random()*w,Math.random()*h,1+Math.random()*2,1+Math.random()*2)}
+        var fill = new THREE.DirectionalLight(0xaabbcc, 0.3);
+        fill.position.set(-5, 8, -5);
+        scene.add(fill);
+
+        // Sky dome
+        var skyGeo = new THREE.SphereGeometry(80, 32, 16);
+        var skyMat = new THREE.ShaderMaterial({
+            side: THREE.BackSide,
+            uniforms: {},
+            vertexShader: 'varying vec3 vPos;void main(){vPos=position;gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.0);}',
+            fragmentShader: 'varying vec3 vPos;void main(){float h=normalize(vPos).y;vec3 top=vec3(0.4,0.55,0.75);vec3 mid=vec3(0.65,0.75,0.85);vec3 bot=vec3(0.8,0.82,0.78);vec3 c=mix(bot,mid,smoothstep(0.0,0.3,h));c=mix(c,top,smoothstep(0.3,0.8,h));gl_FragColor=vec4(c,1.0);}'
         });
-        var roofTex=mkTex(256,256,function(ctx,w,h){
-            ctx.fillStyle='#2a2a2a';ctx.fillRect(0,0,w,h);
-            for(var row=0;row<h/24;row++){var off=(row%2)*16;for(var col=-1;col<w/32+1;col++){var sh=30+Math.random()*20;ctx.fillStyle='rgb('+sh+','+sh+','+sh+')';ctx.beginPath();ctx.arc(col*32+off+16,row*24+12,14,0,Math.PI,false);ctx.fill()}}
-        });roofTex.repeat.set(3,3);
-        var grassTex=mkTex(256,256,function(ctx,w,h){
-            ctx.fillStyle='#4a7c3f';ctx.fillRect(0,0,w,h);
-            for(var i=0;i<5000;i++){var g=80+Math.random()*80;ctx.strokeStyle='rgba('+(30+Math.random()*40)+','+g+','+(20+Math.random()*30)+',0.4)';ctx.lineWidth=0.5;ctx.beginPath();var x=Math.random()*w,y=Math.random()*h;ctx.moveTo(x,y);ctx.lineTo(x+(Math.random()-0.5)*4,y-2-Math.random()*5);ctx.stroke()}
-        });grassTex.repeat.set(8,8);
-        var pathTex=mkTex(128,128,function(ctx,w,h){
-            ctx.fillStyle='#9e9685';ctx.fillRect(0,0,w,h);
-            for(var row=0;row<h/32;row++)for(var col=0;col<w/32;col++){var v=140+Math.random()*30;ctx.fillStyle='rgb('+v+','+(v-5)+','+(v-15)+')';ctx.fillRect(col*32+1,row*32+1,30,30)}
-        });pathTex.repeat.set(2,6);
-        var pillarTex=mkTex(64,256,function(ctx,w,h){
-            var grad=ctx.createLinearGradient(0,0,w,0);
-            grad.addColorStop(0,'#6B0F0F');grad.addColorStop(0.2,'#9B2020');grad.addColorStop(0.5,'#A82828');grad.addColorStop(0.8,'#9B2020');grad.addColorStop(1,'#6B0F0F');
-            ctx.fillStyle=grad;ctx.fillRect(0,0,w,h);
+        scene.add(new THREE.Mesh(skyGeo, skyMat));
+
+        // ═══ MATERIALS ═══
+        function tex(w, h, fn) {
+            var c = document.createElement('canvas');
+            c.width = w; c.height = h;
+            var ctx = c.getContext('2d');
+            fn(ctx, w, h);
+            var t = new THREE.CanvasTexture(c);
+            t.wrapS = t.wrapT = THREE.RepeatWrapping;
+            return t;
+        }
+
+        // Stone texture
+        var stoneTex = tex(256, 256, function(ctx, w, h) {
+            ctx.fillStyle = '#8a8278';
+            ctx.fillRect(0, 0, w, h);
+            for (var i = 0; i < 800; i++) {
+                ctx.fillStyle = 'rgba(' + (100+Math.random()*40) + ',' + (95+Math.random()*35) + ',' + (85+Math.random()*30) + ',0.3)';
+                ctx.fillRect(Math.random()*w, Math.random()*h, 1+Math.random()*3, 1+Math.random()*3);
+            }
+            // Subtle cracks
+            ctx.strokeStyle = 'rgba(60,55,50,0.15)';
+            ctx.lineWidth = 0.5;
+            for (var i = 0; i < 5; i++) {
+                ctx.beginPath();
+                var sx = Math.random()*w, sy = Math.random()*h;
+                ctx.moveTo(sx, sy);
+                for (var j = 0; j < 4; j++) {
+                    sx += (Math.random()-0.5)*30;
+                    sy += (Math.random()-0.5)*30;
+                    ctx.lineTo(sx, sy);
+                }
+                ctx.stroke();
+            }
         });
 
-        // Materials
-        var M={
-            stone:new THREE.MeshStandardMaterial({map:stoneTex,roughness:0.92,metalness:0.02}),
-            stoneD:new THREE.MeshStandardMaterial({color:0x6b6b5e,roughness:0.95}),
-            stoneL:new THREE.MeshStandardMaterial({color:0xa09a8a,roughness:0.9}),
-            red:new THREE.MeshStandardMaterial({map:pillarTex,roughness:0.55,metalness:0.08}),
-            redD:new THREE.MeshStandardMaterial({color:0x5a0e0e,roughness:0.65}),
-            wood:new THREE.MeshStandardMaterial({color:0x5C3317,roughness:0.75}),
-            woodD:new THREE.MeshStandardMaterial({color:0x3a1a08,roughness:0.8}),
-            gold:new THREE.MeshStandardMaterial({color:0xDAA520,roughness:0.25,metalness:0.7}),
-            goldB:new THREE.MeshStandardMaterial({color:0xFFD700,roughness:0.2,metalness:0.8}),
-            roof:new THREE.MeshStandardMaterial({map:roofTex,roughness:0.75}),
-            grass:new THREE.MeshStandardMaterial({map:grassTex,roughness:0.95}),
-            path:new THREE.MeshStandardMaterial({map:pathTex,roughness:0.88}),
-            white:new THREE.MeshStandardMaterial({color:0xf0ebe0,roughness:0.85}),
-            trunk:new THREE.MeshStandardMaterial({color:0x4a3728,roughness:0.92}),
-            trunkD:new THREE.MeshStandardMaterial({color:0x3a2a1a,roughness:0.92}),
-            leafD:new THREE.MeshStandardMaterial({color:0x2d5a1e,roughness:0.88}),
-            leafM:new THREE.MeshStandardMaterial({color:0x3d7a2e,roughness:0.88}),
-            leafL:new THREE.MeshStandardMaterial({color:0x5a9a3e,roughness:0.88}),
-            leafLoq:new THREE.MeshStandardMaterial({color:0x2a5520,roughness:0.85}),
-            leafPom:new THREE.MeshStandardMaterial({color:0x3a6a2a,roughness:0.85}),
-            bamboo:new THREE.MeshStandardMaterial({color:0x4a8a30,roughness:0.65}),
-            bambooJ:new THREE.MeshStandardMaterial({color:0x5a9a40,roughness:0.55}),
+        var M = {
+            stone: new THREE.MeshStandardMaterial({ map: stoneTex, color: 0x9a9288, roughness: 0.85, metalness: 0.05 }),
+            stoneL: new THREE.MeshStandardMaterial({ color: 0xa8a090, roughness: 0.8 }),
+            red: new THREE.MeshStandardMaterial({ color: 0x8B1A1A, roughness: 0.4, metalness: 0.1 }),
+            redD: new THREE.MeshStandardMaterial({ color: 0x6B0F0F, roughness: 0.5 }),
+            white: new THREE.MeshStandardMaterial({ color: 0xF5F0E8, roughness: 0.7 }),
+            gold: new THREE.MeshStandardMaterial({ color: 0xDAA520, roughness: 0.3, metalness: 0.6 }),
+            wood: new THREE.MeshStandardMaterial({ color: 0x5C3317, roughness: 0.6 }),
+            woodD: new THREE.MeshStandardMaterial({ color: 0x3E1F0D, roughness: 0.7 }),
+            grass: new THREE.MeshStandardMaterial({ color: 0x4A7A3A, roughness: 0.95 }),
+            path: new THREE.MeshStandardMaterial({ color: 0x7A7568, roughness: 0.9 }),
+            trunk: new THREE.MeshStandardMaterial({ color: 0x5C4033, roughness: 0.9 }),
+            trunkD: new THREE.MeshStandardMaterial({ color: 0x4A3328, roughness: 0.9 }),
+            leafLoq: new THREE.MeshStandardMaterial({ color: 0x2D5A1E, roughness: 0.8 }),
+            leafPom: new THREE.MeshStandardMaterial({ color: 0x3A6B2A, roughness: 0.8 }),
+            leafD: new THREE.MeshStandardMaterial({ color: 0x1A4A12, roughness: 0.85 }),
+            leafM: new THREE.MeshStandardMaterial({ color: 0x2A5A20, roughness: 0.8 }),
+            leafL: new THREE.MeshStandardMaterial({ color: 0x4A8A3A, roughness: 0.7, side: THREE.DoubleSide }),
+            bamboo: new THREE.MeshStandardMaterial({ color: 0x5A8A3A, roughness: 0.6 }),
+            bambooJ: new THREE.MeshStandardMaterial({ color: 0x4A7A2A, roughness: 0.7 }),
+            roofTile: new THREE.MeshStandardMaterial({ color: 0x4A4A4A, roughness: 0.7, metalness: 0.1 }),
+            roofDark: new THREE.MeshStandardMaterial({ color: 0x3A3A3A, roughness: 0.75 }),
         };
 
-        // Helpers
-        function B(w,h,d,m){return new THREE.Mesh(new THREE.BoxGeometry(w,h,d),m)}
-        function C(rt,rb,h,s,m){return new THREE.Mesh(new THREE.CylinderGeometry(rt,rb,h,s),m)}
-        function S(r,s,m){return new THREE.Mesh(new THREE.SphereGeometry(r,s,s),m)}
-        function Co(r,h,s,m){return new THREE.Mesh(new THREE.ConeGeometry(r,h,s),m)}
-        function T(R,r,s,m){return new THREE.Mesh(new THREE.TorusGeometry(R,r,s,s*2),m)}
-        function P(m,x,y,z){m.position.set(x,y,z);return m}
+        // ═══ HELPERS ═══
+        function B(w,h,d,m){return new THREE.BoxGeometry(w,h,d)}
+        function C(rt,rb,h,seg,m){return new THREE.CylinderGeometry(rt,rb,h,seg||8)}
+        function S(r,seg,m){return new THREE.SphereGeometry(r,seg||8,seg||8)}
+        function Co(rt,rb,seg,m){return new THREE.ConeGeometry(rt,rb,seg||8)}
+        function T(rt,rb,seg,m){return new THREE.TorusGeometry(rt,rb,seg||8,16)}
+        function P(g,x,y,z){var o=new THREE.Mesh(g,arguments.length>4?arguments[4]:undefined);o.position.set(x,y,z);return o}
         function sh(m){m.castShadow=true;m.receiveShadow=true;return m}
 
-        // Text texture
-        function txtTex(text,opts){
-            opts=opts||{};
-            var fs=opts.fs||64,col=opts.col||'#000',bg=opts.bg||'#FFF',
-                w=opts.w||256,h=opts.h||512,vert=opts.vert!==false,
-                bc=opts.bc,bw=opts.bw||4;
-            var c=document.createElement('canvas');c.width=w;c.height=h;
-            var ctx=c.getContext('2d');
-            ctx.fillStyle=bg;ctx.fillRect(0,0,w,h);
-            if(bc){ctx.strokeStyle=bc;ctx.lineWidth=bw;ctx.strokeRect(bw/2,bw/2,w-bw,h-bw);ctx.lineWidth=1;ctx.strokeRect(bw+5,bw+5,w-2*(bw+5),h-2*(bw+5))}
-            ctx.font='bold '+fs+'px KaiTi,STKaiti,"PingFang SC",serif';
-            ctx.textAlign='center';ctx.textBaseline='middle';
-            if(vert){var ch=fs*1.35,sy=(h-text.length*ch)/2+ch/2;for(var i=0;i<text.length;i++){ctx.fillStyle='rgba(0,0,0,0.3)';ctx.fillText(text[i],w/2+2,sy+i*ch+2);ctx.fillStyle=col;ctx.fillText(text[i],w/2,sy+i*ch)}}
-            else{ctx.fillStyle='rgba(0,0,0,0.3)';ctx.fillText(text,w/2+2,h/2+2);ctx.fillStyle=col;ctx.fillText(text,w/2,h/2)}
-            var tex=new THREE.CanvasTexture(c);tex.needsUpdate=true;return tex;
+        // ═══ TEXT SPRITE ═══
+        function mkTextSprite(text, fontSize, color, bgColor) {
+            var c = document.createElement('canvas');
+            c.width = 256; c.height = 1024;
+            var ctx = c.getContext('2d');
+            if (bgColor) {
+                ctx.fillStyle = bgColor;
+                ctx.fillRect(0, 0, 256, 1024);
+                // Border
+                ctx.strokeStyle = '#DAA520';
+                ctx.lineWidth = 6;
+                ctx.strokeRect(8, 8, 240, 1008);
+                ctx.strokeStyle = '#8B6914';
+                ctx.lineWidth = 2;
+                ctx.strokeRect(14, 14, 228, 996);
+            }
+            ctx.fillStyle = color || '#FFD700';
+            ctx.font = 'bold ' + (fontSize || 72) + 'px KaiTi, STKaiti, SimSun, serif';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            var chars = text.split('');
+            var lineH = fontSize * 1.4;
+            var startY = (1024 - chars.length * lineH) / 2 + lineH / 2;
+            chars.forEach(function(ch, i) {
+                ctx.fillText(ch, 128, startY + i * lineH);
+            });
+            var tex = new THREE.CanvasTexture(c);
+            var mat = new THREE.SpriteMaterial({ map: tex, transparent: true, depthTest: false });
+            var sprite = new THREE.Sprite(mat);
+            sprite.scale.set(1.2, 4.8, 1);
+            return sprite;
         }
 
-        // Couplet board
-        function mkCouplet(text){
-            var g=new THREE.Group(),w=0.7,h=3.2;
-            g.add(P(sh(B(w,h,0.1,M.redD)),0,h/2+0.15,0));
-            var t=0.05;
-            g.add(P(B(w+0.1,t,0.12,M.gold),0,h+0.15+t/2,0));
-            g.add(P(B(w+0.1,t,0.12,M.gold),0,0.15-t/2,0));
-            g.add(P(B(t,h+0.1,0.12,M.gold),-w/2-t/2,h/2+0.15,0));
-            g.add(P(B(t,h+0.1,0.12,M.gold),w/2+t/2,h/2+0.15,0));
-            var tex=txtTex(text,{fs:72,col:'#FFD700',bg:'#5a0e0e',w:200,h:500,vert:true,bc:'#B8860B',bw:5});
-            var tm=new THREE.MeshBasicMaterial({map:tex,transparent:true});
-            var tp=new THREE.Mesh(new THREE.PlaneGeometry(w*0.82,h*0.88),tm);
-            tp.position.set(0,h/2+0.15,0.055);g.add(tp);
-            return g;
+        function mkPlaque(text) {
+            var c = document.createElement('canvas');
+            c.width = 512; c.height = 128;
+            var ctx = c.getContext('2d');
+            ctx.fillStyle = '#2A0A0A';
+            ctx.fillRect(0, 0, 512, 128);
+            ctx.strokeStyle = '#DAA520';
+            ctx.lineWidth = 4;
+            ctx.strokeRect(6, 6, 500, 116);
+            ctx.strokeStyle = '#8B6914';
+            ctx.lineWidth = 1.5;
+            ctx.strokeRect(12, 12, 488, 104);
+            ctx.fillStyle = '#FFD700';
+            ctx.font = 'bold 64px KaiTi, STKaiti, SimSun, serif';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText(text, 256, 68);
+            var tex = new THREE.CanvasTexture(c);
+            var mat = new THREE.SpriteMaterial({ map: tex, transparent: true, depthTest: false });
+            var sprite = new THREE.Sprite(mat);
+            sprite.scale.set(4, 1, 1);
+            return sprite;
         }
 
-        // Plaque
-        function mkPlaque(text){
-            var g=new THREE.Group(),w=3.2,h=0.9;
-            g.add(B(w,h,0.12,M.redD));
-            g.add(P(B(w+0.12,0.06,0.14,M.gold),0,h/2+0.02,0));
-            g.add(P(B(w+0.12,0.06,0.14,M.gold),0,-h/2-0.02,0));
-            g.add(P(B(0.06,h+0.12,0.14,M.gold),-w/2-0.02,0,0));
-            g.add(P(B(0.06,h+0.12,0.14,M.gold),w/2+0.02,0,0));
-            var tex=txtTex(text,{fs:80,col:'#FFD700',bg:'#5a0e0e',w:400,h:120,vert:false,bc:'#B8860B',bw:4});
-            var tm=new THREE.MeshBasicMaterial({map:tex,transparent:true});
-            var tp=new THREE.Mesh(new THREE.PlaneGeometry(w*0.85,h*0.7),tm);
-            tp.position.z=0.07;g.add(tp);return g;
+        function mkHScroll(text) {
+            var c = document.createElement('canvas');
+            c.width = 512; c.height = 80;
+            var ctx = c.getContext('2d');
+            ctx.fillStyle = '#3A1515';
+            ctx.fillRect(0, 0, 512, 80);
+            ctx.strokeStyle = '#DAA520';
+            ctx.lineWidth = 3;
+            ctx.strokeRect(4, 4, 504, 72);
+            ctx.fillStyle = '#FFD700';
+            ctx.font = 'bold 40px KaiTi, STKaiti, SimSun, serif';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText(text, 256, 44);
+            var tex = new THREE.CanvasTexture(c);
+            var mat = new THREE.SpriteMaterial({ map: tex, transparent: true, depthTest: false });
+            var sprite = new THREE.Sprite(mat);
+            sprite.scale.set(3.5, 0.55, 1);
+            return sprite;
         }
 
-        // Horizontal scroll
-        function mkHScroll(text){
-            var g=new THREE.Group(),w=2.6,h=0.55;
-            g.add(B(w,h,0.07,M.redD));
-            g.add(P(B(w+0.08,0.04,0.09,M.gold),0,h/2+0.01,0));
-            g.add(P(B(w+0.08,0.04,0.09,M.gold),0,-h/2-0.01,0));
-            var tex=txtTex(text,{fs:50,col:'#FFD700',bg:'#5a0e0e',w:350,h:80,vert:false});
-            var tm=new THREE.MeshBasicMaterial({map:tex,transparent:true});
-            var tp=new THREE.Mesh(new THREE.PlaneGeometry(w*0.88,h*0.7),tm);
-            tp.position.z=0.04;g.add(tp);return g;
+        function mkCouplet(text) {
+            return mkTextSprite(text, 68, '#FFD700', '#2A0A0A');
         }
 
-        // ═══════════════════════════════════════
-        // CHINESE ROOF - realistic approach
-        // Build from multiple parts for proper eave shape
-        // ═══════════════════════════════════════
-        function buildRoof(halfW, halfD, peakH, overhang) {
+        // ═══ ROOF BUILDER ═══
+        function buildRoof(halfW, halfD, peakH, eaveH) {
             var g = new THREE.Group();
-            var w = halfW + overhang;
-            var d = halfD + overhang;
+            var w = halfW, d = halfD;
 
-            // Main roof body - use a custom geometry with proper Chinese roof curve
-            // The key: ridge is high in center, slopes down with a gentle curve,
-            // and the eave tips curve UP (翘角)
-            var seg = 28;
+            // Main roof surface - custom geometry
+            var seg = 32;
             var verts = [], uvs = [], idx = [];
 
             for (var iz = 0; iz <= seg; iz++) {
@@ -239,46 +296,34 @@
                     var u = ix / seg, v = iz / seg;
                     var x = -w + u * 2 * w;
                     var z = -d + v * 2 * d;
-
-                    // Normalized distance from center
-                    var nx = x / w; // -1 to 1
-                    var nz = z / d; // -1 to 1
-
-                    // Hip roof: height depends on distance from ridge
-                    // Ridge runs along X axis at z=0
+                    var nx = x / w;
+                    var nz = z / d;
                     var absZ = Math.abs(nz);
-
-                    // The roof slope: at ridge (z=0) it's at peakH
-                    // At eave edge (z=±1) it drops to near 0
-                    // But the hip corners (where |x| and |z| are both large) drop faster
                     var absX = Math.abs(nx);
 
                     // Hip factor: corners drop more
-                    var hipFactor = 1.0 - absX * 0.4;
-                    if (hipFactor < 0.1) hipFactor = 0.1;
-
-                    // Normalized z position on the slope
+                    var hipFactor = 1.0 - absX * 0.35;
+                    if (hipFactor < 0.15) hipFactor = 0.15;
                     var slopeZ = absZ / hipFactor;
                     if (slopeZ > 1.0) slopeZ = 1.0;
 
-                    // Height: parabolic curve from peak to eave
+                    // Height: peak at center, drops to eave
                     var y = peakH * (1.0 - slopeZ);
 
-                    // Add gentle concave curve to the slope (Chinese roof characteristic)
-                    // The middle of the slope sags slightly, creating the 落膛 effect
-                    y += peakH * 0.08 * Math.sin(slopeZ * Math.PI);
+                    // Gentle concave curve (落膛)
+                    y += peakH * 0.06 * Math.sin(slopeZ * Math.PI);
 
-                    // Eave upturn (翘角) - very subtle, only at the very tips
+                    // Very subtle eave upturn at the very tips only
                     var edgeDist = Math.sqrt(nx * nx + nz * nz);
-                    if (edgeDist > 0.92) {
-                        var t = (edgeDist - 0.92) / 0.08;
-                        y += 0.12 * t * t;
+                    if (edgeDist > 0.93) {
+                        var t = (edgeDist - 0.93) / 0.07;
+                        y += 0.1 * t * t;
                     }
 
-                    // Ridge arch - slight upward bow along the ridge line
-                    if (absZ < 0.15) {
-                        var ridgeT = absZ / 0.15;
-                        y += 0.15 * Math.sin(ridgeT * Math.PI);
+                    // Ridge arch
+                    if (absZ < 0.12) {
+                        var ridgeT = absZ / 0.12;
+                        y += peakH * 0.03 * (1.0 - ridgeT * ridgeT);
                     }
 
                     verts.push(x, y, z);
@@ -296,163 +341,158 @@
                 }
             }
 
-            var geo = new THREE.BufferGeometry();
-            geo.setAttribute('position', new THREE.Float32BufferAttribute(verts, 3));
-            geo.setAttribute('uv', new THREE.Float32BufferAttribute(uvs, 2));
-            geo.setIndex(idx);
-            geo.computeVertexNormals();
+            var roofGeo = new THREE.BufferGeometry();
+            roofGeo.setAttribute('position', new THREE.Float32BufferAttribute(verts, 3));
+            roofGeo.setAttribute('uv', new THREE.Float32BufferAttribute(uvs, 2));
+            roofGeo.setIndex(idx);
+            roofGeo.computeVertexNormals();
+            g.add(sh(new THREE.Mesh(roofGeo, M.roofTile)));
 
-            var roofMesh = sh(new THREE.Mesh(geo, M.roof));
-            g.add(roofMesh);
+            // Roof underside (ceiling)
+            var underGeo = roofGeo.clone();
+            var underMesh = new THREE.Mesh(underGeo, M.roofDark);
+            underMesh.rotation.x = Math.PI;
+            underMesh.position.y = -0.15;
+            g.add(underMesh);
 
             // Ridge beam (正脊)
-            g.add(P(sh(B(0.15, 0.2, halfW * 2 + 0.5, M.gold)), 0, peakH + 0.1, 0));
-
-            // Ridge end decorations (鸱吻) - on both ends of the ridge
+            var ridgeLen = w * 0.85;
+            g.add(P(sh(B(ridgeLen, 0.2, 0.18, M.roofDark)), 0, peakH + 0.12, 0));
+            // Ridge end ornaments (鸱吻)
             [-1, 1].forEach(function(side) {
                 var chi = new THREE.Group();
-                // Body
-                chi.add(P(sh(C(0.15, 0.2, 0.5, 8, M.gold)), 0, 0.25, 0));
-                // Head - curves upward
-                var head = Co(0.12, 0.4, 6, M.gold);
-                head.position.set(0, 0.6, side * 0.15);
-                head.rotation.z = side * 0.5;
-                chi.add(head);
-                // Tail
-                var tail = Co(0.08, 0.3, 6, M.gold);
-                tail.position.set(0, 0.15, -side * 0.2);
-                tail.rotation.z = -side * 0.8;
+                chi.add(P(sh(Co(0.15, 0.35, 6, M.roofDark)), 0, 0.2, 0));
+                var tail = sh(Co(0.08, 0.25, 6, M.gold));
+                tail.position.set(0, 0.12, -side * 0.15);
+                tail.rotation.z = -side * 0.7;
                 chi.add(tail);
-                chi.position.set(side * (halfW + 0.1), peakH + 0.1, 0);
+                chi.position.set(side * ridgeLen, peakH + 0.1, 0);
                 chi.rotation.y = side > 0 ? 0 : Math.PI;
                 g.add(chi);
             });
 
-            // Eave edge trim (瓦当/滴水 line) along the front and back
-            [-1, 1].forEach(function(side) {
+            // Eave trim lines (瓦当滴水)
+            function makeEaveEdge(sideAxis, sideVal, length, alongAxis) {
                 var edgeGeo = new THREE.BufferGeometry();
-                var edgeVerts = [];
-                var edgeIdx = [];
-                var eSeg = 40;
+                var ev = [], ei = [];
+                var eSeg = 48;
                 for (var i = 0; i <= eSeg; i++) {
                     var u = i / eSeg;
-                    var x = -w + u * 2 * w;
-                    var nx = x / w;
-                    var absX = Math.abs(nx);
-                    var hipF = 1.0 - absX * 0.4;
-                    if (hipF < 0.1) hipF = 0.1;
-                    var slopeZ = 1.0 / hipF;
-                    if (slopeZ > 1.0) slopeZ = 1.0;
-                    var y = peakH * (1.0 - slopeZ);
-                    y += peakH * 0.08 * Math.sin(slopeZ * Math.PI);
-                    var edgeDist = Math.abs(nx);
-                    if (edgeDist > 0.92) {
-                        var t = (edgeDist - 0.92) / 0.08;
-                        y += 0.12 * t * t;
+                    var pos1, pos2;
+                    if (alongAxis === 'x') {
+                        var x = -length + u * 2 * length;
+                        var nx = x / w;
+                        var absX = Math.abs(nx);
+                        var hipF = 1.0 - absX * 0.35;
+                        if (hipF < 0.15) hipF = 0.15;
+                        var slopeZ = 1.0 / hipF;
+                        if (slopeZ > 1.0) slopeZ = 1.0;
+                        var y = peakH * (1.0 - slopeZ);
+                        y += peakH * 0.06 * Math.sin(slopeZ * Math.PI);
+                        var edgeDist = Math.abs(nx);
+                        if (edgeDist > 0.93) {
+                            var t = (edgeDist - 0.93) / 0.07;
+                            y += 0.1 * t * t;
+                        }
+                        if (sideAxis === 'z') {
+                            pos1 = [x, y, sideVal];
+                            pos2 = [x, y - 0.1, sideVal];
+                        } else {
+                            pos1 = [sideVal, y, x];
+                            pos2 = [sideVal, y - 0.1, x];
+                        }
+                    } else {
+                        var z = -length + u * 2 * length;
+                        var nz = z / d;
+                        var absZ = Math.abs(nz);
+                        var hipF = 1.0 - 0.35; // at x=±w, absX=1
+                        hipF = 0.65;
+                        var slopeZ = absZ / hipF;
+                        if (slopeZ > 1.0) slopeZ = 1.0;
+                        var y = peakH * (1.0 - slopeZ);
+                        y += peakH * 0.06 * Math.sin(slopeZ * Math.PI);
+                        var edgeDist = Math.sqrt(1.0 + nz * nz);
+                        if (edgeDist > 0.93) {
+                            var t = (edgeDist - 0.93) / 0.07;
+                            y += 0.1 * t * t;
+                        }
+                        pos1 = [sideVal, y, z];
+                        pos2 = [sideVal, y - 0.1, z];
                     }
-                    // Two vertices: one at eave, one slightly below
-                    edgeVerts.push(x, y, side * d);
-                    edgeVerts.push(x, y - 0.12, side * d);
+                    ev.push(pos1[0], pos1[1], pos1[2]);
+                    ev.push(pos2[0], pos2[1], pos2[2]);
                 }
                 for (var i = 0; i < eSeg; i++) {
                     var a = i * 2, b = a + 1, c = a + 2, dd = a + 3;
-                    edgeIdx.push(a, c, b, b, c, dd);
+                    ei.push(a, c, b, b, c, dd);
                 }
-                edgeGeo.setAttribute('position', new THREE.Float32BufferAttribute(edgeVerts, 3));
-                edgeGeo.setIndex(edgeIdx);
+                edgeGeo.setAttribute('position', new THREE.Float32BufferAttribute(ev, 3));
+                edgeGeo.setIndex(ei);
                 edgeGeo.computeVertexNormals();
                 g.add(sh(new THREE.Mesh(edgeGeo, M.gold)));
-            });
+            }
 
+            // Front and back eave edges
+            makeEaveEdge('z', d, w, 'x');
+            makeEaveEdge('z', -d, w, 'x');
             // Side eave edges
-            [-1, 1].forEach(function(side) {
-                var edgeGeo = new THREE.BufferGeometry();
-                var edgeVerts = [];
-                var edgeIdx = [];
-                var eSeg = 30;
-                for (var i = 0; i <= eSeg; i++) {
-                    var u = i / eSeg;
-                    var z = -d + u * 2 * d;
-                    var nz = z / d;
-                    var absZ = Math.abs(nz);
-                    // At the side edge (x = ±w), the hip slope
-                    var hipF = 1.0 - 0.4; // absX = 1
-                    var slopeZ = absZ / hipF;
-                    if (slopeZ > 1.0) slopeZ = 1.0;
-                    var y = peakH * (1.0 - slopeZ);
-                    y += peakH * 0.08 * Math.sin(slopeZ * Math.PI);
-                    var edgeDist = Math.sqrt(1.0 + nz * nz);
-                    if (edgeDist > 0.92) {
-                        var t = (edgeDist - 0.92) / 0.08;
-                        y += 0.12 * t * t;
-                    }
-                    edgeVerts.push(side * w, y, z);
-                    edgeVerts.push(side * w, y - 0.12, z);
-                }
-                for (var i = 0; i < eSeg; i++) {
-                    var a = i * 2, b = a + 1, c = a + 2, dd = a + 3;
-                    edgeIdx.push(a, c, b, b, c, dd);
-                }
-                edgeGeo.setAttribute('position', new THREE.Float32BufferAttribute(edgeVerts, 3));
-                edgeGeo.setIndex(edgeIdx);
-                edgeGeo.computeVertexNormals();
-                g.add(sh(new THREE.Mesh(edgeGeo, M.gold)));
-            });
+            makeEaveEdge('x', w, d, 'z');
+            makeEaveEdge('x', -w, d, 'z');
 
             return g;
         }
 
         // Dougong
-        function mkDougong(s){
-            var g=new THREE.Group(),m=M.redD;
-            g.add(P(B(0.5*s,0.12*s,0.5*s,m),0,0.06*s,0));
-            g.add(P(B(0.7*s,0.08*s,0.15*s,m),0,0.16*s,0));
-            g.add(P(B(0.15*s,0.08*s,0.7*s,m),0,0.16*s,0));
-            g.add(P(B(0.9*s,0.08*s,0.15*s,m),0,0.24*s,0));
-            g.add(P(B(0.15*s,0.08*s,0.9*s,m),0,0.24*s,0));
-            g.add(P(B(0.6*s,0.1*s,0.6*s,m),0,0.33*s,0));
+        function mkDougong(s) {
+            var g = new THREE.Group(), m = M.redD;
+            g.add(P(B(0.5*s, 0.12*s, 0.5*s, m), 0, 0.06*s, 0));
+            g.add(P(B(0.7*s, 0.08*s, 0.15*s, m), 0, 0.16*s, 0));
+            g.add(P(B(0.15*s, 0.08*s, 0.7*s, m), 0, 0.16*s, 0));
+            g.add(P(B(0.9*s, 0.08*s, 0.15*s, m), 0, 0.24*s, 0));
+            g.add(P(B(0.15*s, 0.08*s, 0.9*s, m), 0, 0.24*s, 0));
+            g.add(P(B(0.6*s, 0.1*s, 0.6*s, m), 0, 0.33*s, 0));
             return g;
         }
 
         // Window lattice
-        function mkWindow(w,h){
-            var g=new THREE.Group(),m=M.woodD,bar=0.03;
-            g.add(P(B(w+bar*2,bar,bar,m),0,h/2,0));
-            g.add(P(B(w+bar*2,bar,bar,m),0,-h/2,0));
-            g.add(P(B(bar,h,bar,m),-w/2,0,0));
-            g.add(P(B(bar,h,bar,m),w/2,0,0));
-            var sp=0.18;
-            for(var c=0;c<=Math.floor(w/sp);c++)g.add(P(B(bar,h,bar,m),-w/2+c*sp,0,0));
-            for(var r=0;r<=Math.floor(h/sp);r++)g.add(P(B(w,bar,bar,m),0,-h/2+r*sp,0));
+        function mkWindow(w, h) {
+            var g = new THREE.Group(), m = M.woodD, bar = 0.03;
+            g.add(P(B(w+bar*2, bar, bar, m), 0, h/2, 0));
+            g.add(P(B(w+bar*2, bar, bar, m), 0, -h/2, 0));
+            g.add(P(B(bar, h, bar, m), -w/2, 0, 0));
+            g.add(P(B(bar, h, bar, m), w/2, 0, 0));
+            var sp = 0.18;
+            for (var c = 0; c <= Math.floor(w/sp); c++) g.add(P(B(bar, h, bar, m), -w/2+c*sp, 0, 0));
+            for (var r = 0; r <= Math.floor(h/sp); r++) g.add(P(B(w, bar, bar, m), 0, -h/2+r*sp, 0));
             return g;
         }
 
         // Trees
-        function mkLoquat(s){
+        function mkLoquat(s) {
             s=s||1;var g=new THREE.Group();
             g.add(P(sh(C(0.1*s,0.2*s,2.8*s,8,M.trunk)),0,1.4*s,0));
             [[0,3.4,0,1.6],[-0.9,3.0,0.5,1.2],[0.8,3.1,-0.4,1.3],[0,4.0,0.2,1.1],[-0.5,3.6,-0.5,1.0],[0.4,2.8,0.6,1.1],[-0.3,3.2,-0.2,1.4],[0.6,3.5,0.3,1.0],[0.1,3.8,-0.4,0.9],[-0.7,3.4,0.1,1.1]].forEach(function(p){var sp=sh(S(p[3]*s,7,M.leafLoq));sp.position.set(p[0]*s,p[1]*s,p[2]*s);sp.scale.y=0.7+Math.random()*0.3;g.add(sp)});
             return g;
         }
-        function mkPomelo(s){
+        function mkPomelo(s) {
             s=s||1;var g=new THREE.Group();
             g.add(P(sh(C(0.09*s,0.18*s,3.0*s,8,M.trunk)),0,1.5*s,0));
             [[0,3.6,0,1.7],[-0.7,3.3,0.3,1.3],[0.6,3.4,-0.3,1.4],[0,4.2,0,1.2],[-0.4,3.8,-0.4,1.1],[0.3,3.1,0.5,1.2],[0.5,3.7,0.2,1.0],[-0.6,3.5,-0.1,1.1]].forEach(function(p){var sp=sh(S(p[3]*s,7,M.leafPom));sp.position.set(p[0]*s,p[1]*s,p[2]*s);sp.scale.y=0.75+Math.random()*0.25;g.add(sp)});
             return g;
         }
-        function mkPine(s){
+        function mkPine(s) {
             s=s||1;var g=new THREE.Group();
             g.add(P(sh(C(0.07*s,0.16*s,3.2*s,8,M.trunkD)),0,1.6*s,0));
             [[0,2.8,0,1.6,1.4],[0,3.7,0,1.3,1.1],[0,4.4,0,0.9,1.0],[0,5.0,0,0.5,0.8]].forEach(function(p){g.add(P(sh(Co(p[3]*s,p[4]*s,8,M.leafD)),p[0]*s,p[1]*s,p[2]*s))});
             return g;
         }
-        function mkCypress(s){
+        function mkCypress(s) {
             s=s||1;var g=new THREE.Group();
             g.add(P(sh(C(0.05*s,0.12*s,3.8*s,8,M.trunkD)),0,1.9*s,0));
             [[0,3.2,0,0.85,2.2],[0,4.5,0,0.65,1.6],[0,5.4,0,0.4,1.3],[0,6.1,0,0.2,1.0]].forEach(function(p){g.add(P(sh(Co(p[3]*s,p[4]*s,8,M.leafM)),p[0]*s,p[1]*s,p[2]*s))});
             return g;
         }
-        function mkBamboo(s){
+        function mkBamboo(s) {
             s=s||1;var g=new THREE.Group(),n=5+Math.floor(Math.random()*4);
             for(var i=0;i<n;i++){var sg=new THREE.Group(),h=(3+Math.random()*2.5)*s,r=(0.025+Math.random()*0.02)*s;
             sg.add(P(sh(C(r,r*1.15,h,6,M.bamboo)),0,h/2,0));
@@ -461,7 +501,7 @@
             sg.position.set((Math.random()-0.5)*0.7*s,0,(Math.random()-0.5)*0.7*s);g.add(sg)}
             return g;
         }
-        function mkOsmanthus(s){
+        function mkOsmanthus(s) {
             s=s||1;var g=new THREE.Group();
             g.add(P(sh(C(0.08*s,0.15*s,2.4*s,8,M.trunk)),0,1.2*s,0));
             [[0,3.0,0,1.5],[-0.8,2.7,0.4,1.2],[0.7,2.8,-0.3,1.3],[0,3.6,0.2,1.1],[-0.4,3.2,-0.3,1.2],[0.5,3.3,0.1,1.0]].forEach(function(p){var sp=sh(S(p[3]*s,7,M.leafM));sp.position.set(p[0]*s,p[1]*s,p[2]*s);sp.scale.y=0.7+Math.random()*0.3;g.add(sp)});
@@ -469,13 +509,13 @@
         }
 
         // Stone lantern
-        function mkLantern(s){
+        function mkLantern(s) {
             s=s||1;var g=new THREE.Group();
             g.add(P(C(0.35*s,0.4*s,0.12*s,6,M.stone),0,0.06*s,0));
             g.add(P(C(0.07*s,0.09*s,0.9*s,6,M.stone),0,0.57*s,0));
             g.add(P(C(0.28*s,0.25*s,0.06*s,6,M.stone),0,1.05*s,0));
             g.add(P(B(0.3*s,0.35*s,0.3*s,M.stone),0,1.25*s,0));
-            var rm=Co(0.38*s,0.3*s,6,M.stoneD);rm.position.y=1.58*s;rm.rotation.y=Math.PI/6;g.add(rm);
+            var rm=Co(0.38*s,0.3*s,6,M.stoneL);rm.position.y=1.58*s;rm.rotation.y=Math.PI/6;g.add(rm);
             g.add(P(S(0.05*s,6,M.stone),0,1.78*s,0));
             g.add(P(C(0.03*s,0.03*s,0.12*s,6,M.stone),0,1.85*s,0));
             var glow=new THREE.PointLight(0xffaa44,0.25,3);glow.position.y=1.25*s;g.add(glow);
@@ -488,106 +528,172 @@
         var temple = new THREE.Group();
 
         // Ground
-        var ground=new THREE.Mesh(new THREE.PlaneGeometry(100,100),M.grass);
-        ground.rotation.x=-Math.PI/2;ground.position.y=-0.02;ground.receiveShadow=true;scene.add(ground);
+        var ground = new THREE.Mesh(new THREE.PlaneGeometry(100, 100), M.grass);
+        ground.rotation.x = -Math.PI / 2;
+        ground.position.y = -0.02;
+        ground.receiveShadow = true;
+        scene.add(ground);
 
         // Stone path
-        var pathM=new THREE.Mesh(new THREE.PlaneGeometry(2.8,22),M.path);
-        pathM.rotation.x=-Math.PI/2;pathM.position.set(0,0.005,12);pathM.receiveShadow=true;scene.add(pathM);
-        for(var i=-10;i<10;i++){var z=i*1.15+2;[-1.6,1.6].forEach(function(x){var s=sh(B(0.35,0.1,0.55,M.stoneD));s.position.set(x,0.05,z);scene.add(s)})}
+        var pathM = new THREE.Mesh(new THREE.PlaneGeometry(2.8, 22), M.path);
+        pathM.rotation.x = -Math.PI / 2;
+        pathM.position.set(0, 0.005, 12);
+        pathM.receiveShadow = true;
+        scene.add(pathM);
+        for (var i = -10; i < 10; i++) {
+            var z = i * 1.15 + 2;
+            [-1.6, 1.6].forEach(function(x) {
+                var s = sh(B(0.35, 0.1, 0.55, M.stoneL));
+                s.position.set(x, 0.05, z);
+                scene.add(s);
+            });
+        }
 
-        // Platform 3 tiers
-        var tiers=[{w:15,d:11,h:0.35,y:0},{w:14,d:10.5,h:0.35,y:0.35},{w:13.5,d:10,h:0.35,y:0.7}];
-        tiers.forEach(function(t){
-            var p=sh(B(t.w,t.h,t.d,M.stone));p.position.set(0,t.y+t.h/2,0);p.receiveShadow=true;temple.add(p);
-            var edge=B(t.w+0.15,0.06,t.d+0.15,M.stoneL);edge.position.set(0,t.y+t.h+0.03,0);temple.add(edge);
+        // ═══ PLATFORM ═══
+        var tiers = [
+            { w: 15, d: 11, h: 0.35, y: 0 },
+            { w: 14, d: 10.5, h: 0.35, y: 0.35 },
+            { w: 13.5, d: 10, h: 0.35, y: 0.7 }
+        ];
+        tiers.forEach(function(t) {
+            var p = sh(B(t.w, t.h, t.d, M.stone));
+            p.position.set(0, t.y + t.h / 2, 0);
+            p.receiveShadow = true;
+            temple.add(p);
+            var edge = B(t.w + 0.15, 0.06, t.d + 0.15, M.stoneL);
+            edge.position.set(0, t.y + t.h + 0.03, 0);
+            temple.add(edge);
         });
-        var pH=1.05;
+        var platH = 1.05;
 
         // Steps
-        for(var i=0;i<4;i++){var step=sh(B(3.2,0.26,0.45,M.stone));step.position.set(0,pH-i*0.26+0.13,5+0.22+i*0.45);step.receiveShadow=true;temple.add(step)}
+        for (var i = 0; i < 4; i++) {
+            var step = sh(B(3.2, 0.26, 0.45, M.stone));
+            step.position.set(0, platH - i * 0.26 + 0.13, 5 + 0.22 + i * 0.45);
+            step.receiveShadow = true;
+            temple.add(step);
+        }
         // Step side walls
-        [-1,1].forEach(function(side){
-            var wg=new THREE.BufferGeometry(),hw=1.75;
-            wg.setAttribute('position',new THREE.Float32BufferAttribute([side*hw,pH,5,side*hw,0,5+1.8,side*(hw+0.4),0,5+1.8,side*(hw+0.4),pH,5],3));
-            wg.setIndex([0,1,2,0,2,3]);wg.computeVertexNormals();temple.add(sh(new THREE.Mesh(wg,M.stone)));
+        [-1, 1].forEach(function(side) {
+            var wg = new THREE.BufferGeometry(), hw = 1.75;
+            wg.setAttribute('position', new THREE.Float32BufferAttribute([
+                side*hw, platH, 5,
+                side*hw, 0, 5+1.8,
+                side*(hw+0.4), 0, 5+1.8,
+                side*(hw+0.4), platH, 5
+            ], 3));
+            wg.setIndex([0,1,2,0,2,3]);
+            wg.computeVertexNormals();
+            temple.add(sh(new THREE.Mesh(wg, M.stone)));
         });
 
         // Railing
-        for(var i=-5;i<=5;i++){if(Math.abs(i)<2)continue;
-            temple.add(P(sh(C(0.06,0.06,0.6,6,M.stoneL)),i*1.2,pH+0.3,5.1));
-            temple.add(P(B(1.2,0.08,0.06,M.stoneL),i*1.2+0.6,pH+0.55,5.1));
+        for (var i = -5; i <= 5; i++) {
+            if (Math.abs(i) < 2) continue;
+            temple.add(P(sh(C(0.06, 0.06, 0.6, 6, M.stoneL)), i*1.2, platH+0.3, 5.1));
+            temple.add(P(B(1.2, 0.08, 0.06, M.stoneL), i*1.2+0.6, platH+0.55, 5.1));
         }
 
-        // Pillars
-        var pH2=5.2,pR=0.2;
-        var pPos=[[-5,0,-4],[5,0,-4],[-5,0,4],[5,0,4],[-1.7,0,-4],[1.7,0,-4],[-1.7,0,4],[1.7,0,4]];
-        pPos.forEach(function(pp){
-            var x=pp[0],z=pp[2];
-            temple.add(P(sh(C(pR*1.6,pR*1.8,0.12,12,M.stone)),x,pH+0.06,z));
-            temple.add(P(sh(C(pR*1.3,pR*1.5,0.08,12,M.stoneL)),x,pH+0.16,z));
-            temple.add(P(sh(C(pR,pR*1.05,pH2,16,M.red)),x,pH+0.2+pH2/2,z));
-            temple.add(P(sh(C(pR*1.2,pR*1.05,0.12,12,M.gold)),x,pH+0.2+pH2,z));
-            var dg=mkDougong(0.8);dg.position.set(x,pH+0.2+pH2+0.12,z);temple.add(dg);
+        // ═══ PILLARS ═══
+        var pillarH = 5.2;
+        var pR = 0.2;
+        // Pillar positions: outer corners + inner
+        var pPos = [
+            [-5, -4], [5, -4], [-5, 4], [5, 4],     // outer corners
+            [-1.7, -4], [1.7, -4], [-1.7, 4], [1.7, 4]  // inner
+        ];
+        pPos.forEach(function(pp) {
+            var x = pp[0], z = pp[1];
+            // Stone base
+            temple.add(P(sh(C(pR*1.6, pR*1.8, 0.12, 12, M.stone)), x, platH+0.06, z));
+            temple.add(P(sh(C(pR*1.3, pR*1.5, 0.08, 12, M.stoneL)), x, platH+0.16, z));
+            // Red pillar
+            temple.add(P(sh(C(pR, pR*1.05, pillarH, 16, M.red)), x, platH+0.2+pillarH/2, z));
+            // Gold cap
+            temple.add(P(sh(C(pR*1.2, pR*1.05, 0.12, 12, M.gold)), x, platH+0.2+pillarH, z));
+            // Dougong
+            var dg = mkDougong(0.8);
+            dg.position.set(x, platH + 0.2 + pillarH + 0.12, z);
+            temple.add(dg);
         });
 
-        // Walls
-        temple.add(P(sh(B(10.5,pH2-0.3,0.2,M.white)),0,pH+0.2+(pH2-0.3)/2,-4));
-        [-1,1].forEach(function(side){temple.add(P(sh(B(0.2,pH2-0.3,8,M.white)),side*6,pH+0.2+(pH2-0.3)/2,0))});
+        // ═══ WALLS - flush with pillars, no gaps ═══
+        var wallBottom = platH + 0.2;
+        var wallTop = platH + 0.2 + pillarH;
+        var wallH = pillarH;
+
+        // Back wall: from x=-5 to x=5, at z=-4
+        // Make it slightly wider to overlap with pillar edges
+        temple.add(P(sh(B(10.4, wallH, 0.25, M.white)), 0, wallBottom + wallH/2, -4));
+
+        // Side walls: from z=-4 to z=4, at x=±5
+        // Height matches pillar top exactly
+        [-1, 1].forEach(function(side) {
+            temple.add(P(sh(B(0.25, wallH, 8.25, M.white)), side*5, wallBottom + wallH/2, 0));
+        });
+
+        // Front wall segments (between pillars, NO DOOR)
+        // Left segment: from x=-5 to x=-1.7
+        temple.add(P(sh(B(3.15, wallH, 0.25, M.white)), -3.35, wallBottom + wallH/2, 4));
+        // Right segment: from x=1.7 to x=5
+        temple.add(P(sh(B(3.15, wallH, 0.25, M.white)), 3.35, wallBottom + wallH/2, 4));
+        // Upper front wall (above door opening): from x=-1.7 to x=1.7, top portion
+        var upperWallH = wallH * 0.35;
+        temple.add(P(sh(B(3.2, upperWallH, 0.25, M.white)), 0, wallTop - upperWallH/2, 4));
 
         // Windows on side walls
-        [-1,1].forEach(function(side){[-2,0,2].forEach(function(zOff){
-            var win=mkWindow(1.2,1.6);win.position.set(side*6.12,pH+0.2+pH2*0.5,zOff);win.rotation.y=side*Math.PI/2;temple.add(win);
-        })});
-
-        // Front beam (额枋)
-        temple.add(P(sh(B(10.8,0.35,0.25,M.redD)),0,pH+0.2+pH2-0.15,4.1));
-        [-1,1].forEach(function(side){temple.add(P(sh(B(0.25,0.35,8.2,M.redD)),side*6.1,pH+0.2+pH2-0.15,0))});
-
-        // Roof
-        var roof = buildRoof(6.5, 5.5, 3.2, 1.8);
-        roof.position.y = pH + 0.2 + pH2 + 0.4;
-        temple.add(roof);
-
-        // Doors - simple, no studs/rings clutter
-        [-1.5, 1.5].forEach(function(xOff) {
-            // Door frame
-            temple.add(P(B(0.12,3.8,0.15,M.redD),xOff-0.7,pH+0.2+1.9,4.15));
-            temple.add(P(B(0.12,3.8,0.15,M.redD),xOff+0.7,pH+0.2+1.9,4.15));
-            temple.add(P(B(1.52,0.12,0.15,M.redD),xOff,pH+0.2+3.85,4.15));
-            // Door panels
-            [-1,1].forEach(function(side){
-                var door=sh(B(0.65,3.6,0.08,M.wood));
-                door.position.set(xOff+side*0.35,pH+0.2+1.8,4.18);temple.add(door);
+        [-1, 1].forEach(function(side) {
+            [-2, 0, 2].forEach(function(zOff) {
+                var win = mkWindow(1.2, 1.6);
+                win.position.set(side * 5.15, wallBottom + wallH * 0.5, zOff);
+                win.rotation.y = side * Math.PI / 2;
+                temple.add(win);
             });
         });
-        // Threshold
-        temple.add(P(sh(B(3.2,0.12,0.2,M.stone)),0,pH+0.2+0.06,4.2));
 
-        // ═══ COUPLETS - placed on OUTER front pillars, facing outward ═══
-        // Right couplet (广堡深恩似海长) - on the right outer pillar, facing right
+        // ═══ BEAMS (额枋) - at the top of walls, connecting pillars ═══
+        // Front beam
+        temple.add(P(sh(B(10.6, 0.3, 0.2, M.redD)), 0, wallTop - 0.12, 4.15));
+        // Back beam
+        temple.add(P(sh(B(10.6, 0.3, 0.2, M.redD)), 0, wallTop - 0.12, -4.15));
+        // Side beams
+        [-1, 1].forEach(function(side) {
+            temple.add(P(sh(B(0.2, 0.3, 8.5, M.redD)), side * 5.15, wallTop - 0.12, 0));
+        });
+
+        // ═══ ROOF ═══
+        // Roof dimensions: must extend BEYOND the walls to create eaves
+        // Walls are at x=±5, z=±4. Roof should extend to about x=±6.5, z=±5.5
+        var roof = buildRoof(6.5, 5.5, 3.2, 1.8);
+        roof.position.y = platH + 0.2 + pillarH + 0.4;
+        temple.add(roof);
+
+        // ═══ NO DOORS - open entrance ═══
+
+        // ═══ COUPLETS - on the front wall pillars, facing outward ═══
+        // Right couplet (广堡深恩似海长) - on right front pillar area, facing right
         var rc = mkCouplet('广堡深恩似海长');
-        rc.position.set(5.8, pH + 0.2, 2.5);
+        rc.position.set(5.5, platH + 0.3, 2.5);
         rc.rotation.y = -Math.PI / 2;
         temple.add(rc);
 
-        // Left couplet (侃君厚德如山重) - on the left outer pillar, facing left
+        // Left couplet (侃君厚德如山重) - on left front pillar area, facing left
         var lc = mkCouplet('侃君厚德如山重');
-        lc.position.set(-5.8, pH + 0.2, 2.5);
+        lc.position.set(-5.5, platH + 0.3, 2.5);
         lc.rotation.y = Math.PI / 2;
         temple.add(lc);
 
-        // Plaque (匾额) - above the door beam
+        // Plaque (匾额) - above the entrance
         var plaque = mkPlaque('永怀堂');
-        plaque.position.set(0, pH + 0.2 + pH2 + 0.15, 4.3);
+        plaque.position.set(0, wallTop + 0.3, 4.5);
         temple.add(plaque);
 
-        // Horizontal scroll (横批) - below plaque, above door
+        // Horizontal scroll (横批) - below plaque
         var hscroll = mkHScroll('祖德流芳');
-        hscroll.position.set(0, pH + 0.2 + pH2 - 0.1, 4.3);
+        hscroll.position.set(0, wallTop - 0.5, 4.5);
         temple.add(hscroll);
 
-        // *** NO interior items - temple is empty inside ***
+        // *** NO interior items ***
 
         scene.add(temple);
 
@@ -598,30 +704,54 @@
         [[-7,0,-7,1.0],[7,0,-7,1.0],[-7,0,8,0.9],[7,0,8,0.9]].forEach(function(p){var t=mkCypress(p[3]);t.position.set(p[0],p[1],p[2]);scene.add(t)});
         [[-4,0,8,0.8],[5,0,9,0.7],[-10,0,-1,0.75]].forEach(function(p){var t=mkBamboo(p[3]);t.position.set(p[0],p[1],p[2]);scene.add(t)});
         [[-3,0,-8,0.9],[4,0,-8,0.85]].forEach(function(p){var t=mkOsmanthus(p[3]);t.position.set(p[0],p[1],p[2]);scene.add(t)});
+
+        // Lanterns
         [[-2,0,7,1.0],[2,0,7,1.0],[-2,0,2,0.8],[2,0,2,0.8]].forEach(function(p){var l=mkLantern(p[3]);l.position.set(p[0],p[1],p[2]);scene.add(l)});
 
         // ═══ ANIMATION ═══
-        var autoRotate=true,clock=new THREE.Clock();
-        function animate(){
+        var autoRotate = true;
+        function animate() {
             requestAnimationFrame(animate);
-            controls.autoRotate=autoRotate;controls.autoRotateSpeed=0.8;controls.update();
-            renderer.render(scene,camera);
+            controls.autoRotate = autoRotate;
+            controls.autoRotateSpeed = 0.8;
+            controls.update();
+            renderer.render(scene, camera);
         }
 
-        var loadBar=document.getElementById('load-bar'),prog=0;
-        var li=setInterval(function(){
-            prog+=Math.random()*18+4;
-            if(prog>=100){prog=100;loadBar.style.width='100%';clearInterval(li);
-                setTimeout(function(){document.getElementById('loading').classList.add('done');setTimeout(function(){document.getElementById('loading').style.display='none'},1000)},300)}
-            else loadBar.style.width=prog+'%';
-        },80);
+        var loadBar = document.getElementById('load-bar'), prog = 0;
+        var li = setInterval(function() {
+            prog += Math.random() * 18 + 4;
+            if (prog >= 100) {
+                prog = 100;
+                loadBar.style.width = '100%';
+                clearInterval(li);
+                setTimeout(function() {
+                    document.getElementById('loading').classList.add('done');
+                    setTimeout(function() {
+                        document.getElementById('loading').style.display = 'none';
+                    }, 1000);
+                }, 300);
+            } else {
+                loadBar.style.width = prog + '%';
+            }
+        }, 80);
 
         animate();
 
-        addEventListener('resize',function(){camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();renderer.setSize(innerWidth,innerHeight)});
-        window.resetCamera=function(){controls.target.set(0,3.5,0);camera.position.set(0,8,22);controls.update()};
-        window.toggleAutoRotate=function(){autoRotate=!autoRotate};
-        window.toggleInfo=function(){document.getElementById('info-panel').classList.toggle('show')};
+        addEventListener('resize', function() {
+            camera.aspect = innerWidth / innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(innerWidth, innerHeight);
+        });
+
+        window.resetCamera = function() {
+            controls.target.set(0, 3.5, 0);
+            camera.position.set(0, 8, 22);
+            controls.update();
+        };
+        window.toggleAutoRotate = function() { autoRotate = !autoRotate; };
+        window.toggleInfo = function() { document.getElementById('info-panel').classList.toggle('show'); };
+
     })();
     }
     </script>
